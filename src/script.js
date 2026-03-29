@@ -24,7 +24,7 @@ scene.add(floorMesh);
 var red   = new THREE.MeshStandardMaterial({ color: 0xdd1111, roughness: 0.4, metalness: 0.1 });
 var black = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
 var dark  = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
- 
+
 function box(w, h, d, mat) {
   return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
 }
@@ -43,88 +43,50 @@ scene.add(car);
 (function buildBody() {
   var shape = new THREE.Shape();
 
-  shape.moveTo(2.5,  0.00);  
-  shape.lineTo(2.5,  0.10); 
-  shape.lineTo(1.5,  0.18); 
-  shape.lineTo(0.9,  0.30); 
+  shape.moveTo(2.94,  0.00);
+  shape.lineTo(2.94,  0.10);
+  shape.lineTo(2.4,   0.18);
+
   shape.bezierCurveTo(
-    0.6, 0.48,   
-    0.3, 0.60,  
-    0.1, 0.62  
+    1.2, 0.30,
+    0.2, 0.44,
+   -0.2, 0.44
   );
 
   shape.bezierCurveTo(
-   -0.2, 0.60,  
-   -0.5, 0.42, 
-   -0.7, 0.45   
+   -0.4, 0.50,
+   -1.5, 0.72,
+   -2.1, 0.68
   );
 
-  shape.bezierCurveTo(
-   -0.9, 0.52,
-   -1.1, 0.62,
-   -1.3, 0.62   
-  );
-  shape.bezierCurveTo(
-   -1.6, 0.58,
-   -1.9, 0.38,
-   -2.1, 0.28    
-  );
-  shape.lineTo(-2.1, 0.00);   
-  shape.lineTo( 2.5, 0.00);   
- 
-  var extSettings = {
-    depth: 1.0,            
-    bevelEnabled: false
-  };
- 
-  var geo = new THREE.ExtrudeGeometry(shape, extSettings);
+  shape.lineTo(-2.1, 0.00);
+  shape.lineTo(2.5, 0.00);
+
+  var geo = new THREE.ExtrudeGeometry(shape, { depth: 1.0, bevelEnabled: false });
   geo.translate(0, 0, -0.5);
- 
   var mesh = new THREE.Mesh(geo, red);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   car.add(mesh);
 })();
- 
+
 var cockpit = new THREE.Mesh(new THREE.SphereGeometry(0.38, 16, 12), black);
-cockpit.scale.set(1.05, 0.52, 0.88);
-cockpit.position.set(0.12, 0.64, 0);
+cockpit.scale.set(1.05, 0.55, 0.88);
+cockpit.position.set(0.12, 0.38, 0);
 cockpit.castShadow = true;
 car.add(cockpit);
- 
-(function buildNoseTip() {
-  var shape = new THREE.Shape();
-  shape.moveTo(2.5, 0.00);
-  shape.lineTo(2.5, 0.10);
-  shape.lineTo(3.0, 0.07);
-  shape.lineTo(3.0, 0.00);
-  shape.lineTo(2.5, 0.00);
-  var geo = new THREE.ExtrudeGeometry(shape, { depth: 0.28, bevelEnabled: false });
-  geo.translate(0, 0, -0.14);
-  var mesh = new THREE.Mesh(geo, red);
-  mesh.castShadow = true;
-  car.add(mesh);
-})();
- 
-addTo(car, box(0.9, 0.06, 2.1, red),   2.55, 0.04, 0);
-addTo(car, box(0.9, 0.34, 0.07, red),  2.55, 0.14, 1.08);
-addTo(car, box(0.9, 0.34, 0.07, red),  2.55, 0.14, -1.08);
- 
-addTo(car, box(0.12, 0.52, 0.42, red), -1.95, 0.52, 0);
-addTo(car, box(0.55, 0.14, 1.52, red), -1.95, 0.84, 0);
-addTo(car, box(0.55, 0.10, 1.52, red), -1.95, 1.00, 0);
-addTo(car, box(0.55, 0.60, 0.09, red), -1.95, 0.72, 0.77);
-addTo(car, box(0.55, 0.60, 0.09, red), -1.95, 0.72, -0.77);
- 
-var exh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.35, 12), dark);
-exh.rotation.z = Math.PI / 2;
-exh.position.set(-1.95, 0.36, 0.0);
-car.add(exh);
- 
+
+addTo(car, box(0.9, 0.09, 2.1, red), 2.5, 0.04, 0);
+
+addTo(car, box(0.12, 0.72, 0.42, red), -1.95, 0.62, 0);
+addTo(car, box(0.55, 0.14, 1.52, red), -1.95, 1.04, 0);
+addTo(car, box(0.55, 0.10, 1.52, red), -1.95, 1.20, 0);
+addTo(car, box(0.55, 0.80, 0.09, red), -1.95, 0.85,  0.77);
+addTo(car, box(0.55, 0.80, 0.09, red), -1.95, 0.85, -0.77);
+
 function makeWheel(x, z, isFront) {
   var r  = isFront ? 0.38 : 0.44;
   var tw = isFront ? 0.40 : 0.52;
- 
   var tyre = new THREE.Mesh(
     new THREE.CylinderGeometry(r, r, tw, 32),
     black
@@ -134,14 +96,14 @@ function makeWheel(x, z, isFront) {
   tyre.castShadow = true;
   car.add(tyre);
 }
- 
+
 makeWheel( 1.30,  0.84, true);
 makeWheel( 1.30, -0.84, true);
 makeWheel(-1.35,  0.90, false);
 makeWheel(-1.35, -0.90, false);
- 
+
 var sph = { th: 0.7, ph: 0.9, r: 10 };
- 
+
 function updateCam() {
   sph.ph = Math.max(0.1, Math.min(1.4, sph.ph));
   sph.r  = Math.max(3, Math.min(30, sph.r));
@@ -152,7 +114,7 @@ function updateCam() {
   );
   camera.lookAt(0, 0.5, 0);
 }
- 
+
 var dragging = false, px = 0, py = 0;
 renderer.domElement.addEventListener('mousedown', function(e) { dragging = true; px = e.clientX; py = e.clientY; });
 window.addEventListener('mouseup', function() { dragging = false; });
@@ -167,7 +129,7 @@ renderer.domElement.addEventListener('wheel', function(e) {
   sph.r += e.deltaY * 0.02;
   updateCam();
 }, { passive: true });
- 
+
 renderer.domElement.addEventListener('touchstart', function(e) {
   dragging = true; px = e.touches[0].clientX; py = e.touches[0].clientY;
 }, { passive: true });
@@ -179,15 +141,15 @@ renderer.domElement.addEventListener('touchmove', function(e) {
   px = e.touches[0].clientX; py = e.touches[0].clientY;
   updateCam();
 }, { passive: false });
- 
+
 updateCam();
- 
+
 function animate() {
   requestAnimationFrame(animate);
   renderer.render(scene, camera);
 }
 animate();
- 
+
 window.addEventListener('resize', function() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();

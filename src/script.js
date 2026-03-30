@@ -43,8 +43,8 @@ scene.add(car);
 (function buildBody() {
   var shape = new THREE.Shape();
 
-  shape.moveTo(2.94,  0.00);
-  shape.lineTo(2.94,  0.10);
+  shape.moveTo(2.948,  0.00);
+  shape.lineTo(2.948,  0.10);
   shape.lineTo(2.4,   0.18);
 
   shape.bezierCurveTo(
@@ -72,7 +72,8 @@ scene.add(car);
 
 var cockpit = new THREE.Mesh(new THREE.SphereGeometry(0.38, 16, 12), black);
 cockpit.scale.set(1.05, 0.55, 0.88);
-cockpit.position.set(0.12, 0.38, 0);
+cockpit.position.set(0.12, 0.40, 0);
+cockpit.rotation.z = 9.2;
 cockpit.castShadow = true;
 car.add(cockpit);
 
@@ -81,8 +82,8 @@ addTo(car, box(0.9, 0.09, 2.1, red), 2.5, 0.04, 0);
 addTo(car, box(0.12, 0.72, 0.42, red), -1.95, 0.62, 0);
 addTo(car, box(0.55, 0.14, 1.52, red), -1.95, 1.04, 0);
 addTo(car, box(0.55, 0.10, 1.52, red), -1.95, 1.20, 0);
-addTo(car, box(0.55, 0.80, 0.09, red), -1.95, 0.85,  0.77);
-addTo(car, box(0.55, 0.80, 0.09, red), -1.95, 0.85, -0.77);
+addTo(car, box(0.55, 0.55, 0.09, red), -1.95, 0.975,  0.77);
+addTo(car, box(0.55, 0.55, 0.09, red), -1.95, 0.975, -0.77);
 
 function makeWheel(x, z, isFront) {
   var r  = isFront ? 0.38 : 0.44;
@@ -97,10 +98,10 @@ function makeWheel(x, z, isFront) {
   car.add(tyre);
 }
 
-makeWheel( 1.30,  0.84, true);
-makeWheel( 1.30, -0.84, true);
-makeWheel(-1.35,  0.90, false);
-makeWheel(-1.35, -0.90, false);
+makeWheel( 1.30,  0.70, true);
+makeWheel( 1.30, -0.70, true);
+makeWheel(-1.35,  0.76, false);
+makeWheel(-1.35, -0.76, false);
 
 var sph = { th: 0.7, ph: 0.9, r: 10 };
 

@@ -1,6 +1,5 @@
 var renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
 var scene = new THREE.Scene();
 scene.background = new THREE.Color(0x2a2a2a);
@@ -9,7 +8,6 @@ var camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHei
 scene.add(new THREE.AmbientLight(0xffffff, 0.7));
 var sun = new THREE.DirectionalLight(0xffffff, 1.2);
 sun.position.set(10, 20, 10);
-sun.castShadow = true;
 scene.add(sun);
 var gridHelper = new THREE.GridHelper(40, 40, 0xaaaaaa, 0xcccccc);
 scene.add(gridHelper);
@@ -19,7 +17,6 @@ var floorMesh = new THREE.Mesh(
 );
 floorMesh.rotation.x = -Math.PI / 2;
 floorMesh.position.y = -0.01;
-floorMesh.receiveShadow = true;
 scene.add(floorMesh);
 var red   = new THREE.MeshStandardMaterial({ color: 0xdd1111, roughness: 0.4, metalness: 0.1 });
 var black = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
@@ -30,8 +27,6 @@ function box(w, h, d, mat) {
 }
 function addTo(parent, mesh, x, y, z) {
   mesh.position.set(x, y, z);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
   parent.add(mesh);
   return mesh;
 }
@@ -65,8 +60,6 @@ scene.add(car);
   var geo = new THREE.ExtrudeGeometry(shape, { depth: 1.0, bevelEnabled: false });
   geo.translate(0, 0, -0.5);
   var mesh = new THREE.Mesh(geo, red);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
   car.add(mesh);
 })();
 
@@ -74,7 +67,6 @@ var cockpit = new THREE.Mesh(new THREE.SphereGeometry(0.38, 16, 12), black);
 cockpit.scale.set(1.05, 0.55, 0.88);
 cockpit.position.set(0.12, 0.40, 0);
 cockpit.rotation.z = 9.2;
-cockpit.castShadow = true;
 car.add(cockpit);
 
 addTo(car, box(0.9, 0.09, 2.1, red), 2.5, 0.04, 0);
@@ -94,7 +86,6 @@ function makeWheel(x, z, isFront) {
   );
   tyre.rotation.x = Math.PI / 2;
   tyre.position.set(x, 0, z);
-  tyre.castShadow = true;
   car.add(tyre);
 }
 
@@ -103,17 +94,52 @@ makeWheel( 1.30, -0.70, true);
 makeWheel(-1.35,  0.76, false);
 makeWheel(-1.35, -0.76, false);
 
+// --- WASD controls ---
+var keys = {};
+window.addEventListener('keydown', function(e) { keys[e.key.toLowerCase()] = true; });
+window.addEventListener('keyup',   function(e) { keys[e.key.toLowerCase()] = false; });
+
+var carSpeed    = 0.08;
+var carTurnSpeed = 0.03;
+// carAngle tracks the car's heading (rotation around Y axis)
+var carAngle = 0;
+
+function updateCarMovement() {
+  var moving = false;
+
+  if (keys['a']) {
+    carAngle += carTurnSpeed;
+    car.rotation.y = carAngle;
+  }
+  if (keys['d']) {
+    carAngle -= carTurnSpeed;
+    car.rotation.y = carAngle;
+  }
+
+  if (keys['w']) {
+    car.position.x += Math.cos(carAngle) * carSpeed;
+    car.position.z -= Math.sin(carAngle) * carSpeed;
+    moving = true;
+  }
+  if (keys['s']) {
+    car.position.x -= Math.cos(carAngle) * carSpeed;
+    car.position.z += Math.sin(carAngle) * carSpeed;
+    moving = true;
+  }
+}
+// --- end WASD ---
+
 var sph = { th: 0.7, ph: 0.9, r: 10 };
 
 function updateCam() {
   sph.ph = Math.max(0.1, Math.min(1.4, sph.ph));
   sph.r  = Math.max(3, Math.min(30, sph.r));
-  camera.position.set(
-    sph.r * Math.sin(sph.ph) * Math.sin(sph.th),
-    sph.r * Math.cos(sph.ph),
-    sph.r * Math.sin(sph.ph) * Math.cos(sph.th)
-  );
-  camera.lookAt(0, 0.5, 0);
+  // Camera follows the car
+  var cx = car.position.x + sph.r * Math.sin(sph.ph) * Math.sin(sph.th);
+  var cy = sph.r * Math.cos(sph.ph);
+  var cz = car.position.z + sph.r * Math.sin(sph.ph) * Math.cos(sph.th);
+  camera.position.set(cx, cy, cz);
+  camera.lookAt(car.position.x, car.position.y + 0.5, car.position.z);
 }
 
 var dragging = false, px = 0, py = 0;
@@ -147,6 +173,8 @@ updateCam();
 
 function animate() {
   requestAnimationFrame(animate);
+  updateCarMovement();
+  updateCam();
   renderer.render(scene, camera);
 }
 animate();

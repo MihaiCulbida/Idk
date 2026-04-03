@@ -86,9 +86,10 @@ var carAngle = 0;
 var currentSpeed = 0;
 var maxSpeed = 120;
 var accelTime = 3.0;
-var decelRate = 40;
+var decelRate = 18;
 var accelHoldTime = 0;
 var lastTimestamp = null;
+var coastDir = 1;
 
 function speedToUnits(kmh) {
   return (kmh / 3.6) * 0.04;
@@ -99,8 +100,6 @@ function easeInQuad(t) {
 }
 
 function updateCarMovement(dt) {
-  var moving = false;
-
   if (keys['a']) {
     carAngle += carTurnSpeed;
     car.rotation.y = carAngle;
@@ -111,10 +110,10 @@ function updateCarMovement(dt) {
   }
 
   if (keys['w'] || keys['s']) {
+    coastDir = keys['w'] ? 1 : -1;
     accelHoldTime += dt;
     var t = Math.min(accelHoldTime / accelTime, 1.0);
     currentSpeed = easeInQuad(t) * maxSpeed;
-    moving = true;
   } else {
     accelHoldTime = 0;
     currentSpeed = Math.max(0, currentSpeed - decelRate * dt);
@@ -122,13 +121,9 @@ function updateCarMovement(dt) {
 
   var units = speedToUnits(currentSpeed);
 
-  if (keys['w']) {
-    car.position.x += Math.cos(carAngle) * units;
-    car.position.z -= Math.sin(carAngle) * units;
-  }
-  if (keys['s']) {
-    car.position.x -= Math.cos(carAngle) * units;
-    car.position.z += Math.sin(carAngle) * units;
+  if (currentSpeed > 0) {
+    car.position.x += Math.cos(carAngle) * units * coastDir;
+    car.position.z -= Math.sin(carAngle) * units * coastDir;
   }
 
   updateSpeedometer(currentSpeed);

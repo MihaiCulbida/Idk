@@ -37,26 +37,13 @@ scene.add(car);
 
 (function buildBody() {
   var shape = new THREE.Shape();
-
   shape.moveTo(2.948,  0.00);
   shape.lineTo(2.948,  0.10);
   shape.lineTo(2.4,   0.18);
-
-  shape.bezierCurveTo(
-    1.2, 0.30,
-    0.2, 0.44,
-   -0.2, 0.44
-  );
-
-  shape.bezierCurveTo(
-   -0.4, 0.50,
-   -1.5, 0.72,
-   -2.1, 0.68
-  );
-
+  shape.bezierCurveTo(1.2, 0.30, 0.2, 0.44, -0.2, 0.44);
+  shape.bezierCurveTo(-0.4, 0.50, -1.5, 0.72, -2.1, 0.68);
   shape.lineTo(-2.1, 0.00);
   shape.lineTo(2.5, 0.00);
-
   var geo = new THREE.ExtrudeGeometry(shape, { depth: 1.0, bevelEnabled: false });
   geo.translate(0, 0, -0.5);
   var mesh = new THREE.Mesh(geo, red);
@@ -70,7 +57,6 @@ cockpit.rotation.z = 9.2;
 car.add(cockpit);
 
 addTo(car, box(0.9, 0.09, 2.1, red), 2.5, 0.04, 0);
-
 addTo(car, box(0.12, 0.72, 0.42, red), -1.95, 0.62, 0);
 addTo(car, box(0.55, 0.14, 1.52, red), -1.95, 1.04, 0);
 addTo(car, box(0.55, 0.10, 1.52, red), -1.95, 1.20, 0);
@@ -80,10 +66,7 @@ addTo(car, box(0.55, 0.55, 0.09, red), -1.95, 0.975, -0.77);
 function makeWheel(x, z, isFront) {
   var r  = isFront ? 0.38 : 0.44;
   var tw = isFront ? 0.40 : 0.52;
-  var tyre = new THREE.Mesh(
-    new THREE.CylinderGeometry(r, r, tw, 32),
-    black
-  );
+  var tyre = new THREE.Mesh(new THREE.CylinderGeometry(r, r, tw, 32), black);
   tyre.rotation.x = Math.PI / 2;
   tyre.position.set(x, 0, z);
   car.add(tyre);
@@ -94,17 +77,28 @@ makeWheel( 1.30, -0.70, true);
 makeWheel(-1.35,  0.76, false);
 makeWheel(-1.35, -0.76, false);
 
-// --- WASD controls ---
 var keys = {};
 window.addEventListener('keydown', function(e) { keys[e.key.toLowerCase()] = true; });
 window.addEventListener('keyup',   function(e) { keys[e.key.toLowerCase()] = false; });
 
-var carSpeed    = 0.08;
 var carTurnSpeed = 0.03;
-// carAngle tracks the car's heading (rotation around Y axis)
 var carAngle = 0;
+var currentSpeed = 0;
+var maxSpeed = 120;
+var accelTime = 3.0;
+var decelRate = 40;
+var accelHoldTime = 0;
+var lastTimestamp = null;
 
-function updateCarMovement() {
+function speedToUnits(kmh) {
+  return (kmh / 3.6) * 0.04;
+}
+
+function easeInQuad(t) {
+  return t * t;
+}
+
+function updateCarMovement(dt) {
   var moving = false;
 
   if (keys['a']) {
@@ -116,25 +110,35 @@ function updateCarMovement() {
     car.rotation.y = carAngle;
   }
 
-  if (keys['w']) {
-    car.position.x += Math.cos(carAngle) * carSpeed;
-    car.position.z -= Math.sin(carAngle) * carSpeed;
+  if (keys['w'] || keys['s']) {
+    accelHoldTime += dt;
+    var t = Math.min(accelHoldTime / accelTime, 1.0);
+    currentSpeed = easeInQuad(t) * maxSpeed;
     moving = true;
+  } else {
+    accelHoldTime = 0;
+    currentSpeed = Math.max(0, currentSpeed - decelRate * dt);
+  }
+
+  var units = speedToUnits(currentSpeed);
+
+  if (keys['w']) {
+    car.position.x += Math.cos(carAngle) * units;
+    car.position.z -= Math.sin(carAngle) * units;
   }
   if (keys['s']) {
-    car.position.x -= Math.cos(carAngle) * carSpeed;
-    car.position.z += Math.sin(carAngle) * carSpeed;
-    moving = true;
+    car.position.x -= Math.cos(carAngle) * units;
+    car.position.z += Math.sin(carAngle) * units;
   }
+
+  updateSpeedometer(currentSpeed);
 }
-// --- end WASD ---
 
 var sph = { th: 0.7, ph: 0.9, r: 10 };
 
 function updateCam() {
   sph.ph = Math.max(0.1, Math.min(1.4, sph.ph));
   sph.r  = Math.max(3, Math.min(30, sph.r));
-  // Camera follows the car
   var cx = car.position.x + sph.r * Math.sin(sph.ph) * Math.sin(sph.th);
   var cy = sph.r * Math.cos(sph.ph);
   var cz = car.position.z + sph.r * Math.sin(sph.ph) * Math.cos(sph.th);
@@ -171,9 +175,22 @@ renderer.domElement.addEventListener('touchmove', function(e) {
 
 updateCam();
 
-function animate() {
+var spdDiv = document.getElementById('speedometer');
+
+function updateSpeedometer(speed) {
+  var val = isNaN(speed) ? 0 : Math.round(speed);
+  spdDiv.textContent = val + ' km/h';
+}
+
+function animate(timestamp) {
   requestAnimationFrame(animate);
-  updateCarMovement();
+  var dt = 0;
+  if (lastTimestamp !== null) {
+    dt = (timestamp - lastTimestamp) / 1000;
+    if (dt > 0.1) dt = 0.1;
+  }
+  lastTimestamp = timestamp;
+  updateCarMovement(dt);
   updateCam();
   renderer.render(scene, camera);
 }

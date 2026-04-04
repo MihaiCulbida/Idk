@@ -113,7 +113,8 @@ function updateCarMovement(dt) {
     coastDir = keys['w'] ? 1 : -1;
     accelHoldTime += dt;
     var t = Math.min(accelHoldTime / accelTime, 1.0);
-    currentSpeed = easeInQuad(t) * maxSpeed;
+    var speedLimit = keys['s'] ? 30 : maxSpeed;
+    currentSpeed = easeInQuad(t) * speedLimit;
   } else {
     accelHoldTime = 0;
     currentSpeed = Math.max(0, currentSpeed - decelRate * dt);

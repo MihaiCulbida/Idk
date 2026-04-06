@@ -90,6 +90,7 @@ var decelRate = 18;
 var accelHoldTime = 0;
 var lastTimestamp = null;
 var coastDir = 1;
+var wasAccelerating = false;
 
 function speedToUnits(kmh) {
   return (kmh / 3.6) * 0.04;
@@ -97,6 +98,11 @@ function speedToUnits(kmh) {
 
 function easeInQuad(t) {
   return t * t;
+}
+
+function accelHoldTimeFromSpeed(speed, speedLimit) {
+  if (speedLimit <= 0) return 0;
+  return Math.sqrt(Math.max(0, speed / speedLimit)) * accelTime;
 }
 
 function updateCarMovement(dt) {
@@ -110,12 +116,21 @@ function updateCarMovement(dt) {
   }
 
   if (keys['w'] || keys['s']) {
-    coastDir = keys['w'] ? 1 : -1;
+    var newDir = keys['w'] ? 1 : -1;
+    var speedLimit = keys['s'] ? 30 : maxSpeed;
+
+    if (!wasAccelerating || newDir !== coastDir) {
+      var seedSpeed = (newDir !== coastDir) ? 0 : currentSpeed;
+      accelHoldTime = accelHoldTimeFromSpeed(seedSpeed, speedLimit);
+    }
+
+    coastDir = newDir;
+    wasAccelerating = true;
     accelHoldTime += dt;
     var t = Math.min(accelHoldTime / accelTime, 1.0);
-    var speedLimit = keys['s'] ? 30 : maxSpeed;
     currentSpeed = easeInQuad(t) * speedLimit;
   } else {
+    wasAccelerating = false;
     accelHoldTime = 0;
     currentSpeed = Math.max(0, currentSpeed - decelRate * dt);
   }

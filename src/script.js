@@ -83,21 +83,17 @@ window.addEventListener('keyup',   function(e) { keys[e.key.toLowerCase()] = fal
 
 var carTurnSpeed = 0.03;
 var carAngle = 0;
-var currentSpeed = 0;
-var maxSpeed = 120;
-var accelTime = 3.0;
+var velocity = 0;
+var maxSpeedFwd = 120;
+var maxSpeedBwd = 30;
+var accelFwd = maxSpeedFwd / 3.0;
+var accelBwd = maxSpeedBwd / 3.0;
 var brakeRate = 60;
 var decelRate = 18;
-var accelHoldTime = 0;
 var lastTimestamp = null;
-var moveDir = 0;
 
 function speedToUnits(kmh) {
   return (kmh / 3.6) * 0.04;
-}
-
-function easeInQuad(t) {
-  return t * t;
 }
 
 function updateCarMovement(dt) {
@@ -105,38 +101,35 @@ function updateCarMovement(dt) {
   if (keys['d'] || keys['arrowright']) { carAngle -= carTurnSpeed; car.rotation.y = carAngle; }
 
   var wantDir = (keys['w'] || keys['arrowup']) ? 1 : ((keys['s'] || keys['arrowdown']) ? -1 : 0);
-  var speedLimit = (wantDir === -1) ? 30 : maxSpeed;
 
-  if (wantDir !== 0) {
-    if (moveDir === 0) {
-      moveDir = wantDir;
-      accelHoldTime = 0;
-    }
-
-    if (wantDir === moveDir) {
-      accelHoldTime += dt;
-      var t = Math.min(accelHoldTime / accelTime, 1.0);
-      currentSpeed = easeInQuad(t) * speedLimit;
+  if (wantDir === 1) {
+    if (velocity < 0) {
+      velocity = Math.min(0, velocity + brakeRate * dt);
     } else {
-      currentSpeed = Math.max(0, currentSpeed - brakeRate * dt);
-      if (currentSpeed === 0) {
-        moveDir = wantDir;
-        accelHoldTime = 0;
-      }
+      velocity = Math.min(maxSpeedFwd, velocity + accelFwd * dt);
+    }
+  } else if (wantDir === -1) {
+    if (velocity > 0) {
+      velocity = Math.max(0, velocity - brakeRate * dt);
+    } else {
+      velocity = Math.max(-maxSpeedBwd, velocity - accelBwd * dt);
     }
   } else {
-    accelHoldTime = 0;
-    currentSpeed = Math.max(0, currentSpeed - decelRate * dt);
-    if (currentSpeed === 0) moveDir = 0;
+    if (velocity > 0) {
+      velocity = Math.max(0, velocity - decelRate * dt);
+    } else if (velocity < 0) {
+      velocity = Math.min(0, velocity + decelRate * dt);
+    }
   }
 
-  if (currentSpeed > 0 && moveDir !== 0) {
-    var units = speedToUnits(currentSpeed);
-    car.position.x += Math.cos(carAngle) * units * moveDir;
-    car.position.z -= Math.sin(carAngle) * units * moveDir;
+  if (velocity !== 0) {
+    var units = speedToUnits(Math.abs(velocity));
+    var dir = velocity > 0 ? 1 : -1;
+    car.position.x += Math.cos(carAngle) * units * dir;
+    car.position.z -= Math.sin(carAngle) * units * dir;
   }
 
-  updateSpeedometer(currentSpeed);
+  updateSpeedometer(Math.abs(velocity));
 }
 
 var sph = { th: 0.7, ph: 0.9, r: 10 };

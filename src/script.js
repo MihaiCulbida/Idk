@@ -63,38 +63,22 @@ addTo(car, box(0.55, 0.10, 1.52, red), -1.95, 1.20, 0);
 addTo(car, box(0.55, 0.55, 0.09, red), -1.95, 0.975,  0.77);
 addTo(car, box(0.55, 0.55, 0.09, red), -1.95, 0.975, -0.77);
 
-var MAX_STEER = Math.PI / 4;
-var steerAngle = 0;
-var steerSpeed = 2.5;    
-
-var frontWheelL = new THREE.Group();
-var frontWheelR = new THREE.Group();
-frontWheelL.position.set(1.30, 0,  0.70);
-frontWheelR.position.set(1.30, 0, -0.70);
-car.add(frontWheelL);
-car.add(frontWheelR);
-
-function addFrontTyre(pivot) {
-  var r = 0.38, tw = 0.40;
-  var inner = new THREE.Group();
-  inner.rotation.x = Math.PI / 2;
-  var tyre = new THREE.Mesh(new THREE.CylinderGeometry(r, r, tw, 32), black);
-  inner.add(tyre);
-  pivot.add(inner);
-}
-
-addFrontTyre(frontWheelL);
-addFrontTyre(frontWheelR);
-
-function makeRearWheel(x, z) {
-  var r = 0.44, tw = 0.52;
+function makeWheel(x, z, isFront) {
+  var r  = isFront ? 0.38 : 0.44;
+  var tw = isFront ? 0.40 : 0.52;
   var tyre = new THREE.Mesh(new THREE.CylinderGeometry(r, r, tw, 32), black);
   tyre.rotation.x = Math.PI / 2;
   tyre.position.set(x, 0, z);
   car.add(tyre);
+  return tyre;
 }
-makeRearWheel(-1.35,  0.76);
-makeRearWheel(-1.35, -0.76);
+
+var allWheels = [
+  makeWheel( 1.30,  0.70, true),
+  makeWheel( 1.30, -0.70, true),
+  makeWheel(-1.35,  0.76, false),
+  makeWheel(-1.35, -0.76, false),
+];
 
 var keys = {};
 window.addEventListener('keydown', function(e) { keys[e.key.toLowerCase()] = true; });
@@ -116,57 +100,30 @@ function speedToUnits(kmh) {
 }
 
 function updateCarMovement(dt) {
-  var turningLeft  = keys['a'] || keys['arrowleft'];
-  var turningRight = keys['d'] || keys['arrowright'];
-
-  var targetSteer = 0;
-  if (turningLeft)  targetSteer =  MAX_STEER;
-  if (turningRight) targetSteer = -MAX_STEER;
-
-  var steerDiff = targetSteer - steerAngle;
-  var steerStep = steerSpeed * dt;
-  if (Math.abs(steerDiff) <= steerStep) {
-    steerAngle = targetSteer;
-  } else {
-    steerAngle += Math.sign(steerDiff) * steerStep;
-  }
-
-  frontWheelL.rotation.y = steerAngle;
-  frontWheelR.rotation.y = steerAngle;
-
-  if (Math.abs(velocity) > 0.5) {
-    var dir = velocity > 0 ? 1 : -1;
-    if (turningLeft)  { carAngle += carTurnSpeed * dir; car.rotation.y = carAngle; }
-    if (turningRight) { carAngle -= carTurnSpeed * dir; car.rotation.y = carAngle; }
-  }
-
   var wantDir = (keys['w'] || keys['arrowup']) ? 1 : ((keys['s'] || keys['arrowdown']) ? -1 : 0);
 
   if (wantDir === 1) {
-    if (velocity < 0) {
-      velocity = Math.min(0, velocity + brakeRate * dt);
-    } else {
-      velocity = Math.min(maxSpeedFwd, velocity + accelFwd * dt);
-    }
+    if (velocity < 0) { velocity = Math.min(0, velocity + brakeRate * dt); }
+    else { velocity = Math.min(maxSpeedFwd, velocity + accelFwd * dt); }
   } else if (wantDir === -1) {
-    if (velocity > 0) {
-      velocity = Math.max(0, velocity - brakeRate * dt);
-    } else {
-      velocity = Math.max(-maxSpeedBwd, velocity - accelBwd * dt);
-    }
+    if (velocity > 0) { velocity = Math.max(0, velocity - brakeRate * dt); }
+    else { velocity = Math.max(-maxSpeedBwd, velocity - accelBwd * dt); }
   } else {
-    if (velocity > 0) {
-      velocity = Math.max(0, velocity - decelRate * dt);
-    } else if (velocity < 0) {
-      velocity = Math.min(0, velocity + decelRate * dt);
-    }
+    if (velocity > 0) { velocity = Math.max(0, velocity - decelRate * dt); }
+    else if (velocity < 0) { velocity = Math.min(0, velocity + decelRate * dt); }
   }
 
   if (velocity !== 0) {
+    if (keys['a'] || keys['arrowleft'])  { carAngle += carTurnSpeed; car.rotation.y = carAngle; }
+    if (keys['d'] || keys['arrowright']) { carAngle -= carTurnSpeed; car.rotation.y = carAngle; }
+
     var units = speedToUnits(Math.abs(velocity));
     var dir = velocity > 0 ? 1 : -1;
     car.position.x += Math.cos(carAngle) * units * dir;
     car.position.z -= Math.sin(carAngle) * units * dir;
+
+    var wheelSpin = (units * dir) / 0.38;
+    allWheels.forEach(function(w) { w.rotation.y += wheelSpin; });
   }
 
   updateSpeedometer(Math.abs(velocity));

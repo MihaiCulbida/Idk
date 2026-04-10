@@ -63,23 +63,6 @@ addTo(car, box(0.55, 0.10, 1.52, red), -1.95, 1.20, 0);
 addTo(car, box(0.55, 0.55, 0.09, red), -1.95, 0.975,  0.77);
 addTo(car, box(0.55, 0.55, 0.09, red), -1.95, 0.975, -0.77);
 
-function makeWheel(x, z, isFront) {
-  var r  = isFront ? 0.38 : 0.44;
-  var tw = isFront ? 0.40 : 0.52;
-  var tyre = new THREE.Mesh(new THREE.CylinderGeometry(r, r, tw, 32), black);
-  tyre.rotation.x = Math.PI / 2;
-  tyre.position.set(x, 0, z);
-  car.add(tyre);
-  return tyre;
-}
-
-var allWheels = [
-  makeWheel( 1.30,  0.70, true),
-  makeWheel( 1.30, -0.70, true),
-  makeWheel(-1.35,  0.76, false),
-  makeWheel(-1.35, -0.76, false),
-];
-
 var keys = {};
 window.addEventListener('keydown', function(e) { keys[e.key.toLowerCase()] = true; });
 window.addEventListener('keyup',   function(e) { keys[e.key.toLowerCase()] = false; });
@@ -93,7 +76,39 @@ var accelFwd = maxSpeedFwd / 3.0;
 var accelBwd = maxSpeedBwd / 3.0;
 var brakeRate = 60;
 var decelRate = 18;
+var steerReturnSpeed = 4.0;
+var MAX_STEER = Math.PI / 10;
+var steerAngle = 0;
 var lastTimestamp = null;
+
+function makeFrontWheel(x, z) {
+  var r = 0.38, tw = 0.40;
+  var pivot = new THREE.Group();
+  pivot.position.set(x, 0, z);
+  car.add(pivot);
+  var tyre = new THREE.Mesh(new THREE.CylinderGeometry(r, r, tw, 32), black);
+  tyre.rotation.x = Math.PI / 2;
+  pivot.add(tyre);
+  return { pivot: pivot, tyre: tyre };
+}
+
+function makeRearWheel(x, z) {
+  var r = 0.44, tw = 0.52;
+  var tyre = new THREE.Mesh(new THREE.CylinderGeometry(r, r, tw, 32), black);
+  tyre.rotation.x = Math.PI / 2;
+  tyre.position.set(x, 0, z);
+  car.add(tyre);
+  return tyre;
+}
+
+var frontWheels = [
+  makeFrontWheel( 1.30,  0.70),
+  makeFrontWheel( 1.30, -0.70),
+];
+var rearWheels = [
+  makeRearWheel(-1.35,  0.76),
+  makeRearWheel(-1.35, -0.76),
+];
 
 function speedToUnits(kmh) {
   return (kmh / 3.6) * 0.04;
@@ -113,9 +128,20 @@ function updateCarMovement(dt) {
     else if (velocity < 0) { velocity = Math.min(0, velocity + decelRate * dt); }
   }
 
+  var turning = false;
   if (velocity !== 0) {
-    if (keys['a'] || keys['arrowleft'])  { carAngle += carTurnSpeed; car.rotation.y = carAngle; }
-    if (keys['d'] || keys['arrowright']) { carAngle -= carTurnSpeed; car.rotation.y = carAngle; }
+    if (keys['a'] || keys['arrowleft']) {
+      carAngle += carTurnSpeed;
+      car.rotation.y = carAngle;
+      steerAngle = Math.min(MAX_STEER, steerAngle + MAX_STEER * dt * 3);
+      turning = true;
+    }
+    if (keys['d'] || keys['arrowright']) {
+      carAngle -= carTurnSpeed;
+      car.rotation.y = carAngle;
+      steerAngle = Math.max(-MAX_STEER, steerAngle - MAX_STEER * dt * 3);
+      turning = true;
+    }
 
     var units = speedToUnits(Math.abs(velocity));
     var dir = velocity > 0 ? 1 : -1;
@@ -123,8 +149,16 @@ function updateCarMovement(dt) {
     car.position.z -= Math.sin(carAngle) * units * dir;
 
     var wheelSpin = (units * dir) / 0.38;
-    allWheels.forEach(function(w) { w.rotation.y += wheelSpin; });
+    frontWheels.forEach(function(w) { w.tyre.rotation.y += wheelSpin; });
+    rearWheels.forEach(function(w) { w.rotation.y += wheelSpin; });
   }
+
+  if (!turning) {
+    if (steerAngle > 0) steerAngle = Math.max(0, steerAngle - steerReturnSpeed * dt);
+    else if (steerAngle < 0) steerAngle = Math.min(0, steerAngle + steerReturnSpeed * dt);
+  }
+
+  frontWheels.forEach(function(w) { w.pivot.rotation.y = steerAngle; });
 
   updateSpeedometer(Math.abs(velocity));
 }

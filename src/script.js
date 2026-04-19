@@ -4,20 +4,21 @@ document.body.appendChild(renderer.domElement);
 var scene = new THREE.Scene();
 scene.background = new THREE.Color(0x2a2a2a);
 
-var camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 200);
+var camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 500);
 scene.add(new THREE.AmbientLight(0xffffff, 0.7));
 var sun = new THREE.DirectionalLight(0xffffff, 1.2);
 sun.position.set(10, 20, 10);
 scene.add(sun);
-var gridHelper = new THREE.GridHelper(40, 40, 0xaaaaaa, 0xcccccc);
+var gridHelper = new THREE.GridHelper(200, 200, 0xaaaaaa, 0xcccccc);
 scene.add(gridHelper);
 var floorMesh = new THREE.Mesh(
-  new THREE.PlaneGeometry(40, 40),
+  new THREE.PlaneGeometry(200, 200),
   new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.9 })
 );
 floorMesh.rotation.x = -Math.PI / 2;
 floorMesh.position.y = -0.01;
 scene.add(floorMesh);
+
 var red   = new THREE.MeshStandardMaterial({ color: 0xdd1111, roughness: 0.4, metalness: 0.1 });
 var black = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
 var dark  = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
@@ -81,6 +82,10 @@ var MAX_STEER = Math.PI / 10;
 var steerAngle = 0;
 var lastTimestamp = null;
 
+var falling = false;
+var fallVelocity = 0;
+var EDGE = 99;
+
 function makeFrontWheel(x, z) {
   var r = 0.38, tw = 0.40;
   var pivot = new THREE.Group();
@@ -114,7 +119,25 @@ function speedToUnits(kmh) {
   return (kmh / 3.6) * 0.04;
 }
 
+function resetCar() {
+  falling = false;
+  fallVelocity = 0;
+  velocity = 0;
+  carAngle = 0;
+  steerAngle = 0;
+  car.position.set(0, 0.4, 0);
+  car.rotation.y = 0;
+}
+
 function updateCarMovement(dt) {
+  if (falling) {
+    fallVelocity -= 9.8 * dt;
+    car.position.y += fallVelocity * dt;
+    if (car.position.y < -30) resetCar();
+    updateSpeedometer(0);
+    return;
+  }
+
   var wantDir = (keys['w'] || keys['arrowup']) ? 1 : ((keys['s'] || keys['arrowdown']) ? -1 : 0);
 
   if (wantDir === 1) {
@@ -160,6 +183,10 @@ function updateCarMovement(dt) {
 
   frontWheels.forEach(function(w) { w.pivot.rotation.y = steerAngle; });
 
+  if (Math.abs(car.position.x) > EDGE || Math.abs(car.position.z) > EDGE) {
+    falling = true;
+  }
+
   updateSpeedometer(Math.abs(velocity));
 }
 
@@ -169,7 +196,7 @@ function updateCam() {
   sph.ph = Math.max(0.1, Math.min(1.4, sph.ph));
   sph.r  = Math.max(3, Math.min(30, sph.r));
   var cx = car.position.x + sph.r * Math.sin(sph.ph) * Math.sin(sph.th);
-  var cy = sph.r * Math.cos(sph.ph);
+  var cy = car.position.y + sph.r * Math.cos(sph.ph);
   var cz = car.position.z + sph.r * Math.sin(sph.ph) * Math.cos(sph.th);
   camera.position.set(cx, cy, cz);
   camera.lookAt(car.position.x, car.position.y + 0.5, car.position.z);
@@ -191,10 +218,12 @@ renderer.domElement.addEventListener('wheel', function(e) {
 }, { passive: true });
 
 renderer.domElement.addEventListener('touchstart', function(e) {
+  if (e.target.classList.contains('dpad-btn')) return;
   dragging = true; px = e.touches[0].clientX; py = e.touches[0].clientY;
 }, { passive: true });
 renderer.domElement.addEventListener('touchend', function() { dragging = false; }, { passive: true });
 renderer.domElement.addEventListener('touchmove', function(e) {
+  if (e.target.classList.contains('dpad-btn')) return;
   if (!dragging) return;
   sph.th -= (e.touches[0].clientX - px) * 0.007;
   sph.ph -= (e.touches[0].clientY - py) * 0.007;

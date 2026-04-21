@@ -67,7 +67,6 @@ addTo(car, box(0.55, 0.55, 0.09, red), -1.95, 0.975, -0.77);
 var keys = {};
 window.addEventListener('keydown', function(e) {
   keys[e.key.toLowerCase()] = true;
-  // prevent page scroll on spacebar
   if (e.key === ' ') e.preventDefault();
 });
 window.addEventListener('keyup', function(e) { keys[e.key.toLowerCase()] = false; });
@@ -120,6 +119,54 @@ var rearWheels = [
   makeRearWheel(-1.35, -0.76),
 ];
 
+var SKID_FADE = 30.0;
+var MAX_SKID_SEGMENTS = 1200;
+var skidSegments = []; 
+
+function addSkidSegment(wx, wz, angle) {
+  var geo = new THREE.PlaneGeometry(0.28, 0.55);
+  var mat = new THREE.MeshBasicMaterial({
+    color: 0x1a1a1a,
+    transparent: true,
+    opacity: 0.85,
+    depthWrite: false
+  });
+  var mesh = new THREE.Mesh(geo, mat);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.rotation.z = angle + Math.PI / 2;
+  mesh.position.set(wx, 0.002, wz);
+  scene.add(mesh);
+  skidSegments.push({ mesh: mesh, mat: mat, born: performance.now() / 1000 });
+  if (skidSegments.length > MAX_SKID_SEGMENTS) {
+    var old = skidSegments.shift();
+    scene.remove(old.mesh);
+    old.mesh.geometry.dispose();
+    old.mat.dispose();
+  }
+}
+
+function updateSkidFade(now) {
+  for (var i = skidSegments.length - 1; i >= 0; i--) {
+    var s = skidSegments[i];
+    var age = now - s.born;
+    if (age >= SKID_FADE) {
+      scene.remove(s.mesh);
+      s.mesh.geometry.dispose();
+      s.mat.dispose();
+      skidSegments.splice(i, 1);
+    } else {
+      s.mat.opacity = 0.85 * (1 - age / SKID_FADE);
+    }
+  }
+}
+
+function getRearWheelWorldPos(localX, localZ) {
+  var cos = Math.cos(carAngle), sin = Math.sin(carAngle);
+  var wx = car.position.x + cos * localX + sin * localZ;
+  var wz = car.position.z - sin * localX + cos * localZ;
+  return { x: wx, z: wz };
+}
+
 function speedToUnits(kmh) {
   return (kmh / 3.6) * 0.04;
 }
@@ -147,7 +194,6 @@ function updateCarMovement(dt) {
   var wantDir = (keys['w'] || keys['arrowup']) ? 1 : ((keys['s'] || keys['arrowdown']) ? -1 : 0);
 
   if (braking) {
-    // Hard brake: bring velocity toward 0 fast regardless of direction
     if (velocity > 0) {
       velocity = Math.max(0, velocity - hardBrakeRate * dt);
     } else if (velocity < 0) {
@@ -195,6 +241,13 @@ function updateCarMovement(dt) {
   }
 
   frontWheels.forEach(function(w) { w.pivot.rotation.y = steerAngle; });
+
+  if (braking && Math.abs(velocity) > 4) {
+    var rw1 = getRearWheelWorldPos(-1.35,  0.76);
+    var rw2 = getRearWheelWorldPos(-1.35, -0.76);
+    addSkidSegment(rw1.x, rw1.z, carAngle);
+    addSkidSegment(rw2.x, rw2.z, carAngle);
+  }
 
   if (Math.abs(car.position.x) > EDGE || Math.abs(car.position.z) > EDGE) {
     falling = true;
@@ -262,6 +315,7 @@ function animate(timestamp) {
   }
   lastTimestamp = timestamp;
   updateCarMovement(dt);
+  updateSkidFade(performance.now() / 1000);
   updateCam();
   renderer.render(scene, camera);
 }

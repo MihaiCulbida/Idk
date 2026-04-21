@@ -65,8 +65,12 @@ addTo(car, box(0.55, 0.55, 0.09, red), -1.95, 0.975,  0.77);
 addTo(car, box(0.55, 0.55, 0.09, red), -1.95, 0.975, -0.77);
 
 var keys = {};
-window.addEventListener('keydown', function(e) { keys[e.key.toLowerCase()] = true; });
-window.addEventListener('keyup',   function(e) { keys[e.key.toLowerCase()] = false; });
+window.addEventListener('keydown', function(e) {
+  keys[e.key.toLowerCase()] = true;
+  // prevent page scroll on spacebar
+  if (e.key === ' ') e.preventDefault();
+});
+window.addEventListener('keyup', function(e) { keys[e.key.toLowerCase()] = false; });
 
 var carTurnSpeed = 0.03;
 var carAngle = 0;
@@ -76,6 +80,7 @@ var maxSpeedBwd = 30;
 var accelFwd = maxSpeedFwd / 3.0;
 var accelBwd = maxSpeedBwd / 3.0;
 var brakeRate = 60;
+var hardBrakeRate = 180;
 var decelRate = 18;
 var steerReturnSpeed = 4.0;
 var MAX_STEER = Math.PI / 10;
@@ -138,9 +143,17 @@ function updateCarMovement(dt) {
     return;
   }
 
+  var braking = keys[' '];
   var wantDir = (keys['w'] || keys['arrowup']) ? 1 : ((keys['s'] || keys['arrowdown']) ? -1 : 0);
 
-  if (wantDir === 1) {
+  if (braking) {
+    // Hard brake: bring velocity toward 0 fast regardless of direction
+    if (velocity > 0) {
+      velocity = Math.max(0, velocity - hardBrakeRate * dt);
+    } else if (velocity < 0) {
+      velocity = Math.min(0, velocity + hardBrakeRate * dt);
+    }
+  } else if (wantDir === 1) {
     if (velocity < 0) { velocity = Math.min(0, velocity + brakeRate * dt); }
     else { velocity = Math.min(maxSpeedFwd, velocity + accelFwd * dt); }
   } else if (wantDir === -1) {

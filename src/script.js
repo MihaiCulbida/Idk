@@ -82,47 +82,7 @@ function makeRearWheel(x, z) {
 var frontWheels = [makeFrontWheel(1.30, 0.70), makeFrontWheel(1.30, -0.70)];
 var rearWheels  = [makeRearWheel(-1.35, 0.76), makeRearWheel(-1.35, -0.76)];
 
-var TRAMP_X =-30, TRAMP_Z = 0;
-var TRAMP_W = 6, TRAMP_D = 4, TRAMP_H = 0.9;
-var TRAMP_RAMP_L = 6.0;
-var TRAMP_TOP_Y = TRAMP_H;
-
-var trampGroup = new THREE.Group();
-trampGroup.position.set(TRAMP_X, 0, TRAMP_Z);
-scene.add(trampGroup);
-
-var metalMat  = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.4, metalness: 0.7 });
-var fabricMat = new THREE.MeshStandardMaterial({ color: 0x1155cc, roughness: 0.8 });
-var rampMat   = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.6 });
-
-
-[[-TRAMP_W/2+0.3, -TRAMP_D/2+0.3], [TRAMP_W/2-0.3, -TRAMP_D/2+0.3],
- [-TRAMP_W/2+0.3,  TRAMP_D/2-0.3], [TRAMP_W/2-0.3,  TRAMP_D/2-0.3]].forEach(function(p) {
-  var leg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.45, 8), metalMat);
-  leg.position.set(p[0], -0.22, p[1]);
-  trampGroup.add(leg);
-});
-
-var rampShape = new THREE.Shape();
-rampShape.moveTo(0, 0);
-rampShape.lineTo(TRAMP_RAMP_L, 0);
-rampShape.lineTo(TRAMP_RAMP_L, TRAMP_H);
-rampShape.lineTo(0, 0);
-var rampExtGeo = new THREE.ExtrudeGeometry(rampShape, { depth: TRAMP_D, bevelEnabled: false });
-rampExtGeo.translate(0, 0, -TRAMP_D / 2);
-var rampMesh = new THREE.Mesh(rampExtGeo, rampMat);
-rampMesh.rotation.y = Math.PI;
-rampMesh.position.set(-TRAMP_W / 2, 0, 0);
-trampGroup.add(rampMesh);
-
 function getGroundHeightAt(wx, wz) {
-  var minX = TRAMP_X - TRAMP_W / 2,  maxX = TRAMP_X + TRAMP_W / 2;
-  var minZ = TRAMP_Z - TRAMP_D / 2,  maxZ = TRAMP_Z + TRAMP_D / 2;
-  var rMinX = minX - TRAMP_RAMP_L,   rMaxX = maxX + TRAMP_RAMP_L;
-  var inZ = (wz > minZ - 0.3 && wz < maxZ + 0.3);
-
-  if (inZ && wx > minX && wx < maxX) return TRAMP_TOP_Y;
-  if (inZ && wx >= rMinX && wx <= minX) return ((wx - rMinX) / TRAMP_RAMP_L) * TRAMP_TOP_Y;
   return 0;
 }
 
@@ -141,15 +101,12 @@ var accelFwd  = maxSpeedFwd / 3.0, accelBwd = maxSpeedBwd / 3.0;
 var brakeRate = 60, hardBrakeRate = 180, decelRate = 18;
 var MAX_STEER = Math.PI / 10;
 var steerAngle = 0, steerReturnSpeed = 4.0;
-var lastTimestamp  = null;
+var lastTimestamp = null;
 
 var carY = 0.4;
 var velY = 0;
 var onGround = true;
 var falling  = false;
-
-var BOUNCE_FACTOR = 0.72;
-var BOUNCE_MIN = 1.5;
 var GRAVITY = 12;
 var CAR_FLOOR_OFFSET = 0.4;
 var EDGE = 99;
@@ -159,7 +116,7 @@ function resetCar() {
   velY = 0; velocity = 0; carAngle = 0; steerAngle = 0;
   carY = CAR_FLOOR_OFFSET;
   car.position.set(0, carY, 0);
-  car.rotation.set(0, 0, 0);
+  car.quaternion.set(0, 0, 0, 1);
 }
 
 var SKID_FADE = 30.0, MAX_SKID = 1200, skidSegs = [];
@@ -194,6 +151,7 @@ function updateSkidFade(now) {
     }
   }
 }
+
 function getRearWheelWorldPos(lx, lz) {
   var cos = Math.cos(carAngle), sin = Math.sin(carAngle);
   return { x: car.position.x + cos * lx + sin * lz,
@@ -212,23 +170,14 @@ function updateCarMovement(dt) {
   }
 
   var groundY = getGroundHeightAt(car.position.x, car.position.z) + CAR_FLOOR_OFFSET;
-  var minX = TRAMP_X - TRAMP_W / 2, maxX = TRAMP_X + TRAMP_W / 2;
-  var minZ = TRAMP_Z - TRAMP_D / 2, maxZ = TRAMP_Z + TRAMP_D / 2;
-  var onTrampTop = (car.position.x > minX && car.position.x < maxX &&
-                   car.position.z > minZ && car.position.z < maxZ);
 
   if (!onGround) {
     velY -= GRAVITY * dt;
     carY += velY * dt;
     if (carY <= groundY) {
       carY = groundY;
-      if (onTrampTop && velY < -BOUNCE_MIN) {
-        velY = -velY * BOUNCE_FACTOR;
-        velocity = Math.min(maxSpeedFwd, Math.abs(velocity) * 1.3) * (velocity >= 0 ? 1 : -1);
-      } else {
-        velY = 0;
-        onGround = true;
-      }
+      velY = 0;
+      onGround = true;
     }
   } else {
     carY = groundY;
@@ -239,10 +188,24 @@ function updateCarMovement(dt) {
   var sd = 0.5;
   var yF = getGroundHeightAt(car.position.x + Math.cos(carAngle) * sd, car.position.z - Math.sin(carAngle) * sd);
   var yB = getGroundHeightAt(car.position.x - Math.cos(carAngle) * sd, car.position.z + Math.sin(carAngle) * sd);
-  car.rotation.x = Math.atan2(yF - yB, sd * 2);
+  var yR = getGroundHeightAt(car.position.x + Math.sin(carAngle) * sd, car.position.z + Math.cos(carAngle) * sd);
+  var yL = getGroundHeightAt(car.position.x - Math.sin(carAngle) * sd, car.position.z - Math.cos(carAngle) * sd);
 
-  var braking  = keys[' '];
-  var wantDir  = (keys['w'] || keys['arrowup']) ? 1 : ((keys['s'] || keys['arrowdown']) ? -1 : 0);
+  var pitch = Math.atan2(yF - yB, sd * 2);
+  var roll  = Math.atan2(yR - yL, sd * 2);
+
+  var qYaw   = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), carAngle);
+  var qPitch = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -pitch);
+  var qRoll  = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), roll);
+
+  var targetQ = new THREE.Quaternion();
+  targetQ.multiplyQuaternions(qYaw, qPitch);
+  targetQ.multiplyQuaternions(targetQ, qRoll);
+
+  car.quaternion.slerp(targetQ, 0.2);
+
+  var braking = keys[' '];
+  var wantDir = (keys['w'] || keys['arrowup']) ? 1 : ((keys['s'] || keys['arrowdown']) ? -1 : 0);
   if (braking) {
     if (velocity > 0) velocity = Math.max(0, velocity - hardBrakeRate * dt);
     else if (velocity < 0) velocity = Math.min(0, velocity + hardBrakeRate * dt);
@@ -269,8 +232,6 @@ function updateCarMovement(dt) {
       steerAngle = Math.max(-MAX_STEER, steerAngle - MAX_STEER * dt * 3);
       turning = true;
     }
-    var units = speedToUnits(Math.abs(velocity));
-    var dir   = velocity > 0 ? 1 : -1;
     car.position.x += Math.cos(carAngle) * units * dir;
     car.position.z -= Math.sin(carAngle) * units * dir;
 
@@ -281,7 +242,6 @@ function updateCarMovement(dt) {
     frontWheels.forEach(function(w) { w.tyre.rotation.y += wheelSpin; });
     rearWheels.forEach(function(w) { w.rotation.y += wheelSpin; });
   }
-  car.rotation.y = carAngle;
 
   if (!turning) {
     if (steerAngle > 0) steerAngle = Math.max(0, steerAngle - steerReturnSpeed * dt);

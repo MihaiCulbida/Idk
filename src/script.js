@@ -257,13 +257,15 @@ function updateCarMovement(dt) {
 
   var turning = false;
   if (velocity !== 0 && onGround) {
+    var units = speedToUnits(Math.abs(velocity));
+    var dir   = velocity > 0 ? 1 : -1;
     if (keys['a'] || keys['arrowleft']) {
-      carAngle += carTurnSpeed;
+      carAngle += carTurnSpeed * dir;
       steerAngle = Math.min(MAX_STEER, steerAngle + MAX_STEER * dt * 3);
       turning = true;
     }
     if (keys['d'] || keys['arrowright']) {
-      carAngle -= carTurnSpeed;
+      carAngle -= carTurnSpeed * dir;
       steerAngle = Math.max(-MAX_STEER, steerAngle - MAX_STEER * dt * 3);
       turning = true;
     }
